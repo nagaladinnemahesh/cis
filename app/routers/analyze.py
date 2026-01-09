@@ -1,7 +1,8 @@
 import uuid
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks
 from app.schemas.content import AnalyzeRequest, AnalyzeResponse
 from app.db.mongo import analysis_collection
+from app.workers.processor import process_analysis_job
 
 router = APIRouter(
     prefix="/analyze",
@@ -9,7 +10,7 @@ router = APIRouter(
 )
 
 @router.post("/", response_model=AnalyzeResponse)
-def analyze_content(request: AnalyzeRequest):
+def analyze_content(request: AnalyzeRequest, background_tasks: BackgroundTasks):
     job_id = "cis_" + uuid.uuid4().hex[:8]
 
     analysis_collection.insert_one({
@@ -20,6 +21,9 @@ def analyze_content(request: AnalyzeRequest):
         "metadata": request.metadata,
         "result": None
     })
+
+    # trigger background processing
+    background_tasks.add_task(process_analysis_job, job_id)
 
     return AnalyzeResponse(
         job_id=job_id,
