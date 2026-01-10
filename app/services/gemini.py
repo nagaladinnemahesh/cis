@@ -30,11 +30,11 @@ ANALYSIS_SCHEMA = {
 
 def analyze_content_with_gemini(content_type: str, content: dict) -> dict:
     prompt = f"""
-Analyze the following {content_type}.
+    Analyze the following {content_type}.
 
-Content:
-{content}
-"""
+    Content:
+    {content}
+    """
 
     response = client.models.generate_content(
         model=MODEL_NAME,
@@ -48,3 +48,35 @@ Content:
 
     # SAFE: already validated JSON
     return response.parsed
+
+# for ai reply generation
+
+def generate_reply_with_gemini(payload: dict):
+    email = payload["original_email"]
+    context = payload.get("context", {})
+    tone = payload.get("tone", "professional")
+
+    prompt = f"""
+You are an AI assistant drafting email replies.
+
+Write a {tone} reply to the following email.
+
+Email:
+Subject: {email.get("subject")}
+Body: {email.get("body")}
+
+Return ONLY the reply text.
+"""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+        config={"temperature": 0.3}
+    )
+
+    return {
+        "reply": response.text.strip()
+    }
+
+
+

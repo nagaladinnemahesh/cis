@@ -11,6 +11,12 @@ class ContentPayload(BaseModel):
     title: Optional[str] = None
     body: str
 
+# ai draft for reply with coffer
+class ReplyDraftContent(BaseModel):
+    original_subject: str
+    original_body: str
+    from_email: Optional[str] = None
+
 class AnalyzeRequest(BaseModel):
     content_type: ContentType
     content: ContentPayload
