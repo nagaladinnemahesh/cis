@@ -12,7 +12,7 @@ if not MONGO_URI:
 # client = MongoClient(MONGO_URI, tls=True, tlsCAFile=certifi.where(), serverSelectionTimeoutMS=5000)
 
 client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000) #local docker mongo
-client.admin.command("ping")
+# client.admin.command("ping")
 
 db = client['cis']
 analysis_collection = db['analysis_jobs']
