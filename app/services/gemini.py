@@ -23,18 +23,54 @@ ANALYSIS_SCHEMA = {
         "summary": {"type": "string"},
         "suggested_actions": {
             "type": "array",
+            "minItems":0,
+            "maxItems":2,
             "items": {"type": "string"}
         }
     }
 }
 
+def normalize_suggested_action(actions: list[str], intent: str) -> str:
+    """
+    Convert Gemini's suggested_actions array into ONE clean sentence
+    suitable for direct UI display.
+    """
+
+    if not actions:
+        return "Review and respond if needed."
+
+    action = actions[0].strip()
+
+    # Safety: avoid very long / verbose actions
+    if len(action.split()) > 14:
+        return "Review and respond accordingly."
+
+    if not action.endswith("."):
+        action += "."
+
+    return action
+
+
 def analyze_content_with_gemini(content_type: str, content: dict) -> dict:
     prompt = f"""
-    Analyze the following {content_type}.
+You are an intelligent email analysis assistant.
 
-    Content:
-    {content}
-    """
+Analyze the following {content_type} and return ONLY valid JSON
+that strictly follows the given schema.
+
+Rules:
+- intent: short snake_case string
+- urgency: one of low | medium | high
+- summary: ONE short sentence (max 20 words)
+- suggested_actions:
+  - Return 1 to 3 SHORT action sentences
+  - Do NOT over-explain
+  - If no action is required, return:
+    ["No action required at this time."]
+
+Content:
+{content}
+"""
 
     response = client.models.generate_content(
         model=MODEL_NAME,
@@ -46,26 +82,49 @@ def analyze_content_with_gemini(content_type: str, content: dict) -> dict:
         ),
     )
 
-    # SAFE: already validated JSON
-    return response.parsed
+    analysis = response.parsed  #store first
 
-# for ai reply generation
+    # normalize into ONE clean UI sentence
+    analysis["suggested_action"] = normalize_suggested_action(
+        analysis.get("suggested_actions", []),
+        analysis["intent"]
+    )
+
+    # removing raw array as UI should not deal with arrays
+    analysis.pop("suggested_actions", None)
+
+    print("FINAL ANALYSIS SENT TO API:", analysis)
+
+    return analysis
+
 
 def generate_reply_with_gemini(payload: dict):
     email = payload["original_email"]
-    context = payload.get("context", {})
+    analysis = payload.get("analysis", {})
     tone = payload.get("tone", "professional")
 
     prompt = f"""
-You are an AI assistant drafting email replies.
+You are a professional email assistant.
 
-Write a {tone} reply to the following email.
+Context:
+- Intent: {analysis.get("intent")}
+- Urgency: {analysis.get("urgency")}
+- Summary: {analysis.get("summary")}
+
+Write a {tone} reply to the email below.
 
 Email:
 Subject: {email.get("subject")}
 Body: {email.get("body")}
 
-Return ONLY the reply text.
+Rules:
+- Write only the email body
+- Be clear, polite, and human
+- Do NOT include subject
+- Do NOT add placeholders
+- Do NOT explain your reasoning
+
+Return only plain text.
 """
 
     response = client.models.generate_content(
@@ -74,9 +133,4 @@ Return ONLY the reply text.
         config={"temperature": 0.3}
     )
 
-    return {
-        "reply": response.text.strip()
-    }
-
-
-
+    return {"reply": response.text.strip()}
