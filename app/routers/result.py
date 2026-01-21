@@ -3,7 +3,7 @@ from app.db.mongo import analysis_collection
 
 router = APIRouter(
     prefix="/analysis",
-    tags=["Analysis"]
+    tags=["Results"]
 )
 
 @router.get("/{job_id}")
@@ -16,4 +16,8 @@ def get_analysis(job_id: str):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    return job
+    return {
+        "job_id": job["job_id"],
+        "status": job["status"],
+        "result": job["result"]
+    }
