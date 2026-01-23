@@ -6,7 +6,7 @@ def retrive_context(content_type: str, limit: int = 3):
     Retrive recent completed analyses for the same content content_type
     """
 
-    curosr = analysis_collection.find(
+    cursor = analysis_collection.find(
         {
             "content_type": content_type,
             "status": "completed",
