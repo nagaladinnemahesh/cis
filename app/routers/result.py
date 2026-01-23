@@ -3,7 +3,7 @@ from app.db.mongo import analysis_collection
 
 router = APIRouter(
     prefix="/analysis",
-    tags=["Results"]
+    tags=["Analysis"]
 )
 
 @router.get("/{job_id}")

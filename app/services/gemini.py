@@ -51,9 +51,30 @@ def normalize_suggested_action(actions: list[str], intent: str) -> str:
     return action
 
 
-def analyze_content_with_gemini(content_type: str, content: dict) -> dict:
+def analyze_content_with_gemini(
+    content_type: str,
+    content: dict,
+    contexts: list | None = None
+) -> dict:
+
+    context_block = ""
+    if contexts:
+        context_block = "\n\nPrevious related analyses:\n"
+        for i, ctx in enumerate(contexts, start=1):
+            context_block += (
+                f"{i}. Intent: {ctx.get('intent')}, "
+                f"Urgency: {ctx.get('urgency')}, "
+                f"Summary: {ctx.get('summary')}\n"
+            )
+
     prompt = f"""
 You are an intelligent email analysis assistant.
+
+Use the previous related analyses ONLY as reference patterns.
+Do NOT copy them verbatim.
+Use them to improve intent detection and urgency classification.
+
+{context_block}
 
 Analyze the following {content_type} and return ONLY valid JSON
 that strictly follows the given schema.
@@ -82,20 +103,20 @@ Content:
         ),
     )
 
-    analysis = response.parsed  #store first
+    analysis = response.parsed
 
-    # normalize into ONE clean UI sentence
+    # Normalize suggested action for UI
     analysis["suggested_action"] = normalize_suggested_action(
         analysis.get("suggested_actions", []),
         analysis["intent"]
     )
 
-    # removing raw array as UI should not deal with arrays
     analysis.pop("suggested_actions", None)
 
     print("FINAL ANALYSIS SENT TO API:", analysis)
 
     return analysis
+
 
 
 def generate_reply_with_gemini(payload: dict):
